@@ -61,7 +61,7 @@ using namespace std;
 //    image = greyPic;
     
     Mat binPic;
-//    threshold(greyPic, binPic, 80, 255, THRESH_BINARY);    //阈值化为二值图片
+    threshold(greyPic, binPic, 0, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
     const int maxVal = 255;
     int blockSize = 3;    //取值3、5、7....等
     int constValue = 10;
@@ -77,22 +77,58 @@ using namespace std;
            1:THRESH_BINARY_INV
        */
        //---------------【4】图像自适应阈值操作-------------------------
-    adaptiveThreshold(greyPic, binPic, maxVal, adaptiveMethod, thresholdType, blockSize, constValue);
-    image = binPic;
+//    adaptiveThreshold(greyPic, binPic, maxVal, adaptiveMethod, THRESH_BINARY | THRESH_OTSU, blockSize, constValue);
+//    image = binPic;
     
     float cannyThr = 200, FACTOR = 2.5;
     Mat cannyPic;
     Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
+//    image = cannyPic;
     vector<vector<cv::Point>> contours;    //储存轮廓
     vector<Vec4i> hierarchy;
-    findContours(cannyPic, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);    //获取轮廓
+    findContours(cannyPic, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);    //获取轮廓
+    
+    //现在找出矩形
+    vector<cv::Point> point;//用于存放折线点集
+    Mat Rect = image.clone();
+    /// 计算矩
+    vector<Moments> mu(contours.size() );
+    ///  计算中心矩:
+    vector<Point2f> mc( contours.size() );
+    static int RectCount = 0;
+    for (int i = 0; i < contours.size(); i++)
+    {
+        approxPolyDP(contours[i], point, arcLength(contours[i], true) * 0.01, true);
+        if (point.size() % 4 == 0)
+        {
+            /// 计算矩
+            for( int i = 0; i < contours.size(); i++ )
+               { mu[i] = moments( contours[i], false ); }
+            /// 计算矩
+            for( int i = 0; i < contours.size(); i++ )
+               { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
+
+            drawContours(Rect, contours, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
+            image = Rect;
+            [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", point.size(), ++RectCount];
+            }];
+        }
+    }
+    
+    RectCount = 0;
+    
+    
     
     //画出图像
-    Mat linePic = Mat::zeros(cannyPic.rows, cannyPic.cols, CV_8UC3);
-    for (int index = 0; index < contours.size(); index++){
-            drawContours(linePic, contours, index, Scalar(rand() & 255, rand() & 255, rand() & 255), 1, 8/*, hierarchy*/);
-    }
+//    Mat linePic = Mat::zeros(cannyPic.rows, cannyPic.cols, CV_8UC3);
+//    for (int index = 0; index < point.size(); index++){
+//            drawContours(linePic, point, index, Scalar(rand() & 255, rand() & 255, rand() & 255), 1, 8/*, hierarchy*/);
+//    }
 //    image = linePic;
+    
+    
+    
     
      //暂时不使用//计算最大面积矩形
 //     vector<vector<cv::Point>> polyContours(contours.size());
