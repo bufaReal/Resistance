@@ -57,11 +57,11 @@ using namespace std;
     //转化为灰度图像
     Mat greyPic;
     cvtColor(image, greyPic, COLOR_BGR2GRAY); //转化为灰度图
-    medianBlur(greyPic, greyPic, 7);    //中值滤波
+    medianBlur(greyPic, greyPic, 1);    //中值滤波
 //    image = greyPic;
     
     Mat binPic;
-    threshold(greyPic, binPic, 0, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
+//    threshold(greyPic, binPic, 0, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
     const int maxVal = 255;
     int blockSize = 3;    //取值3、5、7....等
     int constValue = 10;
@@ -77,10 +77,10 @@ using namespace std;
            1:THRESH_BINARY_INV
        */
        //---------------【4】图像自适应阈值操作-------------------------
-//    adaptiveThreshold(greyPic, binPic, maxVal, adaptiveMethod, THRESH_BINARY | THRESH_OTSU, blockSize, constValue);
-//    image = binPic;
+    adaptiveThreshold(greyPic, binPic, maxVal, adaptiveMethod, thresholdType, blockSize, constValue);
+    image = binPic;
     
-    float cannyThr = 200, FACTOR = 2.5;
+    float cannyThr = 100, FACTOR = 2.5;
     Mat cannyPic;
     Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
 //    image = cannyPic;
@@ -89,43 +89,68 @@ using namespace std;
     findContours(cannyPic, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);    //获取轮廓
     
     //现在找出矩形
-    vector<cv::Point> point;//用于存放折线点集
+    vector<vector<cv::Point>> contours_poly(contours.size());//用于存放折线点集
     Mat Rect = image.clone();
-    /// 计算矩
-    vector<Moments> mu(contours.size() );
-    ///  计算中心矩:
-    vector<Point2f> mc( contours.size() );
+    //当查找到多个矩形后，而后计算中心距
     static int RectCount = 0;
     for (int i = 0; i < contours.size(); i++)
     {
-        approxPolyDP(contours[i], point, arcLength(contours[i], true) * 0.01, true);
-        if (point.size() % 4 == 0)
+        approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
+        if (contours_poly[i].size() % 4 == 0)
         {
-            /// 计算矩
-            for( int i = 0; i < contours.size(); i++ )
-               { mu[i] = moments( contours[i], false ); }
-            /// 计算矩
-            for( int i = 0; i < contours.size(); i++ )
-               { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
-
-            drawContours(Rect, contours, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
+            drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
             image = Rect;
             [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-                self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", point.size(), ++RectCount];
+                self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
             }];
         }
     }
-    
+    /// 计算矩
+    vector<Moments> mu(contours.size());
+    ///  计算中心矩:
+    vector<Point2f> mc(contours.size());
+    /// 计算矩
+    for( int i = 0; i < contours.size(); i++ )
+       { mu[i] = moments( contours[i], false ); }
+    /// 计算矩
+    for( int i = 0; i < contours.size(); i++ )
+       { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
+
     RectCount = 0;
+    //中心矩是一个容器，需要处理其中的点
+    //遍历mc 容器
+    for (int i = 0; i < mc.size(); i ++)
+    {
+        if (isnan(mc[i].x) || isnan(mc[i].y))
+        {
+            mc.erase(begin(mc) + i);
+        }
+    }
+    
+    //把中心矩 vector 转化成为 int
+    vector<Point2f> mc_int(mc.size());
+    transform(mc.begin(), mc.end(), mc_int.begin(), op);
+    
+    //删除重复元素
+    vector<Point2f> mc_int_singal(1);
+    for (int i = 0; i < mc_int.size(); i ++)
+    {
+        auto iter = std::find(std::begin(mc_int_singal), std::end(mc_int_singal), mc_int[i]);
+        if (iter == std:: end (mc_int_singal))
+        {
+            mc_int_singal.push_back(mc_int[i]);
+        }
+    }
+    mc_int_singal.erase(begin(mc_int_singal));
     
     
+   // 画出图像
     
-    //画出图像
 //    Mat linePic = Mat::zeros(cannyPic.rows, cannyPic.cols, CV_8UC3);
-//    for (int index = 0; index < point.size(); index++){
-//            drawContours(linePic, point, index, Scalar(rand() & 255, rand() & 255, rand() & 255), 1, 8/*, hierarchy*/);
+//    for (int index = 0; index < contours_poly.size(); index++){
+//            drawContours(Rect, contours_poly[index], index, Scalar(rand() & 255, rand() & 255, rand() & 255), 1, 8/*, hierarchy*/);
 //    }
-//    image = linePic;
+//    image = Rect;
     
     
     
@@ -206,6 +231,16 @@ using namespace std;
 
    
 }
+
+Point2f op(Point2f ch)
+{
+    Point2f ponit((int)ch.x, (int)ch.y);
+    return ponit;
+}
+
+//图形的中心点需要两个方面的计算
+//一个是得到中心点颜色
+//另外一个是得到几个中心点之间的距离
 - (IBAction)StartAction:(UIButton *)sender {
     [self.videoCamera start];
 }
