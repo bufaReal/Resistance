@@ -53,40 +53,69 @@ using namespace std;
 
 - (void)processImage:(cv::Mat &)image
 {
+    //检测全部颜色
+    Mat hsvImg;
+    cvtColor(image, hsvImg, COLOR_BGR2HSV);
+    enum colorType{Red = 0, Green, Blue, ColorButt};
+      
+    const Scalar hsvRedLo( 0,  40,  40);
+    const Scalar hsvRedHi(40, 255, 255);
+      
+    const Scalar hsvGreenLo(41,  40,  40);
+    const Scalar hsvGreenHi(90, 255, 255);
+      
+    const Scalar hsvBlueLo(100,  40,  40);
+    const Scalar hsvBlueHi(140, 255, 255);
+    
+    const Scalar hsvYellowLo(26, 43, 46);
+    const Scalar hsvYellowHi(34, 255, 255);
+      
+    vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo};
+    vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi};
+    
+    
+    vector<vector<cv::Point>> contours;    //储存轮廓
+    //这里是个循环.重复步骤，直到所有颜色都识别完毕。
+    for (int colorIdx = 0; colorIdx < hsvLo.size(); colorIdx ++) {
+        Mat imgThresholded;
+        // 查找指定范围内的颜色
+        inRange(hsvImg, hsvLo[colorIdx], hsvHi[colorIdx], imgThresholded);
+//        image = imgThresholded;
+        Mat binPic;
+//        threshold(imgThresholded, binPic, 1, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
+        const int maxVal = 255;
+        int blockSize = 3;    //取值3、5、7....等
+        int constValue = 10;
+        int adaptiveMethod = 0;
+        int thresholdType = 1;
+        /*
+               自适应阈值算法
+               0:ADAPTIVE_THRESH_MEAN_C
+               1:ADAPTIVE_THRESH_GAUSSIAN_C
+               --------------------------------------
+               阈值类型
+               0:THRESH_BINARY
+               1:THRESH_BINARY_INV
+           */
+           //---------------【4】图像自适应阈值操作-------------------------
+        adaptiveThreshold(imgThresholded, binPic, maxVal, adaptiveMethod, thresholdType, blockSize, constValue);
+        float cannyThr = 100, FACTOR = 2.5;
+        Mat cannyPic;
+        Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
+        vector<Vec4i> hierarchy;
+        findContours(cannyPic, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);    //获取轮廓
+    }
+    hsvLo.clear();
+    hsvHi.clear();
+    
+    
     //检测矩形部分
     //转化为灰度图像
     Mat greyPic;
-    cvtColor(image, greyPic, COLOR_BGR2GRAY); //转化为灰度图
-    medianBlur(greyPic, greyPic, 1);    //中值滤波
+//    cvtColor(image, greyPic, COLOR_BGR2GRAY); //转化为灰度图
 //    image = greyPic;
-    
-    Mat binPic;
-//    threshold(greyPic, binPic, 0, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
-    const int maxVal = 255;
-    int blockSize = 3;    //取值3、5、7....等
-    int constValue = 10;
-    int adaptiveMethod = 0;
-    int thresholdType = 1;
-    /*
-           自适应阈值算法
-           0:ADAPTIVE_THRESH_MEAN_C
-           1:ADAPTIVE_THRESH_GAUSSIAN_C
-           --------------------------------------
-           阈值类型
-           0:THRESH_BINARY
-           1:THRESH_BINARY_INV
-       */
-       //---------------【4】图像自适应阈值操作-------------------------
-    adaptiveThreshold(greyPic, binPic, maxVal, adaptiveMethod, thresholdType, blockSize, constValue);
-    image = binPic;
-    
-    float cannyThr = 100, FACTOR = 2.5;
-    Mat cannyPic;
-    Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
-//    image = cannyPic;
-    vector<vector<cv::Point>> contours;    //储存轮廓
-    vector<Vec4i> hierarchy;
-    findContours(cannyPic, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);    //获取轮廓
+//    medianBlur(greyPic, greyPic, 1);    //中值滤波
+//    image = greyPic;
     
     //现在找出矩形
     vector<vector<cv::Point>> contours_poly(contours.size());//用于存放折线点集
@@ -98,25 +127,26 @@ using namespace std;
         approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
         if (contours_poly[i].size() % 4 == 0)
         {
-            drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
-            image = Rect;
-            [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-                self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
-            }];
+           drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
+//           image = Rect;
+           [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+               self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
+           }];
         }
     }
+    RectCount = 0;
+    contours.clear();
+   
     /// 计算矩
-    vector<Moments> mu(contours.size());
+    vector<Moments> mu(contours_poly.size());
     ///  计算中心矩:
-    vector<Point2f> mc(contours.size());
+    vector<Point2f> mc(contours_poly.size());
     /// 计算矩
-    for( int i = 0; i < contours.size(); i++ )
+    for( int i = 0; i < contours_poly.size(); i++ )
        { mu[i] = moments( contours[i], false ); }
     /// 计算矩
-    for( int i = 0; i < contours.size(); i++ )
+    for( int i = 0; i < contours_poly.size(); i++ )
        { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
-
-    RectCount = 0;
     //中心矩是一个容器，需要处理其中的点
     //遍历mc 容器
     for (int i = 0; i < mc.size(); i ++)
@@ -143,6 +173,11 @@ using namespace std;
     }
     mc_int_singal.erase(begin(mc_int_singal));
     
+    contours_poly.clear();
+    mu.clear();
+    mc.clear();
+    mc_int.clear();
+    mc_int_singal.clear();
     
    // 画出图像
     
