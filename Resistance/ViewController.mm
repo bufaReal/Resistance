@@ -15,6 +15,7 @@
 #import <opencv2/videoio.hpp>
 #import <opencv2/highgui.hpp>  // OpenCV window I/O
 #import <Masonry.h>
+#include <MapKit/MapKit.h>
 
 
 using namespace cv;
@@ -53,6 +54,9 @@ using namespace std;
 
 - (void)processImage:(cv::Mat &)image
 {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+    });
     //检测全部颜色
     Mat hsvImg;
     cvtColor(image, hsvImg, COLOR_BGR2HSV);
@@ -73,8 +77,9 @@ using namespace std;
     vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo};
     vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi};
     
-    
-    vector<vector<cv::Point>> contours;    //储存轮廓
+    //存储得到的颜色边框
+    vector<string> colors = {"red", "green", "blue", "yellow"};
+    std:map<string, vector<vector<cv::Point>>> colorContours;
     //这里是个循环.重复步骤，直到所有颜色都识别完毕。
     for (int colorIdx = 0; colorIdx < hsvLo.size(); colorIdx ++) {
         Mat imgThresholded;
@@ -103,7 +108,12 @@ using namespace std;
         Mat cannyPic;
         Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
         vector<Vec4i> hierarchy;
+        //这里数据结构是不对的。
+        //应该把各个颜色的边框存储到一个map中，比如red：contours
+        vector<vector<cv::Point>> contours;    //储存轮廓
         findContours(cannyPic, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);    //获取轮廓
+        colorContours.insert(std::make_pair(colors[colorIdx], contours));
+        contours.clear();
     }
     hsvLo.clear();
     hsvHi.clear();
@@ -116,68 +126,74 @@ using namespace std;
 //    image = greyPic;
 //    medianBlur(greyPic, greyPic, 1);    //中值滤波
 //    image = greyPic;
-    
-    //现在找出矩形
-    vector<vector<cv::Point>> contours_poly(contours.size());//用于存放折线点集
-    Mat Rect = image.clone();
-    //当查找到多个矩形后，而后计算中心距
-    static int RectCount = 0;
-    for (int i = 0; i < contours.size(); i++)
-    {
-        approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
-        if (contours_poly[i].size() % 4 == 0)
+    for (int i = 0; i < colorContours.size(); i ++) {
+        vector<vector<cv::Point>> contours = colorContours[colors[i]];
+        //现在找出矩形
+        vector<vector<cv::Point>> contours_poly(contours.size());//用于存放折线点集
+        Mat Rect = image.clone();
+        //当查找到多个矩形后，而后计算中心距
+        static int RectCount = 0;
+        for (int i = 0; i < contours.size(); i++)
         {
-           drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
-//           image = Rect;
-           [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-               self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
-           }];
-        }
-    }
-    RectCount = 0;
-    contours.clear();
-   
-    /// 计算矩
-    vector<Moments> mu(contours_poly.size());
-    ///  计算中心矩:
-    vector<Point2f> mc(contours_poly.size());
-    /// 计算矩
-    for( int i = 0; i < contours_poly.size(); i++ )
-       { mu[i] = moments( contours[i], false ); }
-    /// 计算矩
-    for( int i = 0; i < contours_poly.size(); i++ )
-       { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
-    //中心矩是一个容器，需要处理其中的点
-    //遍历mc 容器
-    for (int i = 0; i < mc.size(); i ++)
-    {
-        if (isnan(mc[i].x) || isnan(mc[i].y))
+            approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
+            if (contours_poly[i].size() % 4 == 0)
+            {
+               drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
+//               image = Rect;
+//               [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+//                   self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
+//               }];
+            }
+//        }
+        RectCount = 0;
+        NSLog(@"contours size %lu", contours.size());
+       
+        /// 计算矩
+        vector<Moments> mu(contours_poly.size());
+        ///  计算中心矩:
+        vector<Point2f> mc(contours_poly.size());
+        /// 计算矩
+        for( int i = 0; i < contours_poly.size(); i++ )
+           { mu[i] = moments( contours_poly[i], false ); }
+        /// 计算矩
+        for( int i = 0; i < contours_poly.size(); i++ )
+           { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
+        //中心矩是一个容器，需要处理其中的点
+        //遍历mc 容器
+        for (int i = 0; i < mc.size(); i ++)
         {
-            mc.erase(begin(mc) + i);
+            if (isnan(mc[i].x) || isnan(mc[i].y))
+            {
+                mc.erase(begin(mc) + i);
+            }
         }
-    }
-    
-    //把中心矩 vector 转化成为 int
-    vector<Point2f> mc_int(mc.size());
-    transform(mc.begin(), mc.end(), mc_int.begin(), op);
-    
-    //删除重复元素
-    vector<Point2f> mc_int_singal(1);
-    for (int i = 0; i < mc_int.size(); i ++)
-    {
-        auto iter = std::find(std::begin(mc_int_singal), std::end(mc_int_singal), mc_int[i]);
-        if (iter == std:: end (mc_int_singal))
+        
+        //把中心矩 vector 转化成为 int
+        vector<Point2f> mc_int(mc.size());
+        transform(mc.begin(), mc.end(), mc_int.begin(), op);
+        
+        //删除重复元素
+        vector<Point2f> mc_int_singal(1);
+        for (int i = 0; i < mc_int.size(); i ++)
         {
-            mc_int_singal.push_back(mc_int[i]);
+            auto iter = std::find(std::begin(mc_int_singal), std::end(mc_int_singal), mc_int[i]);
+            if (iter == std:: end (mc_int_singal))
+            {
+                mc_int_singal.push_back(mc_int[i]);
+            }
         }
+        mc_int_singal.erase(begin(mc_int_singal));
+        
+        contours_poly.clear();
+        mu.clear();
+        mc.clear();
+        mc_int.clear();
+        mc_int_singal.clear();
+        }
+        
     }
-    mc_int_singal.erase(begin(mc_int_singal));
     
-    contours_poly.clear();
-    mu.clear();
-    mc.clear();
-    mc_int.clear();
-    mc_int_singal.clear();
+    
     
    // 画出图像
     
