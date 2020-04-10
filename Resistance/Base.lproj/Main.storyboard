@@ -28,6 +28,13 @@
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="DaI-bl-yne">
+                                <rect key="frame" x="212" y="738" width="42" height="30"/>
+                                <state key="normal" title="Pause"/>
+                                <connections>
+                                    <action selector="Pauseaction:" destination="BYZ-38-t0r" eventType="touchUpInside" id="vhi-Ju-hwK"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <constraints>
@@ -35,7 +42,9 @@
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="Fkz-A9-rvR" secondAttribute="trailing" constant="164" id="HX4-Vq-OSn"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="Fkz-A9-rvR" secondAttribute="bottom" constant="270" id="aKN-Mc-tE7"/>
                             <constraint firstItem="ECs-1S-g0S" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" constant="205.5" id="fxD-mE-oVp"/>
+                            <constraint firstItem="DaI-bl-yne" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" constant="305" id="prp-M8-wec"/>
                             <constraint firstItem="ECs-1S-g0S" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="t6i-bd-sis"/>
+                            <constraint firstItem="DaI-bl-yne" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" constant="26" id="zOW-rJ-pVT"/>
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>

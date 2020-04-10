@@ -126,8 +126,14 @@ using namespace std;
 //    image = greyPic;
 //    medianBlur(greyPic, greyPic, 1);    //中值滤波
 //    image = greyPic;
+    if (colorContours.size() > 100) {
+        colorContours.clear();
+    }
     for (int i = 0; i < colorContours.size(); i ++) {
         vector<vector<cv::Point>> contours = colorContours[colors[i]];
+        if (contours.size() > 100) {
+            contours.clear();
+        }
         //现在找出矩形
         vector<vector<cv::Point>> contours_poly(contours.size());//用于存放折线点集
         Mat Rect = image.clone();
@@ -135,10 +141,13 @@ using namespace std;
         static int RectCount = 0;
         for (int i = 0; i < contours.size(); i++)
         {
+//            if (i % 2 == 0) {
+//                break;
+//            }
             approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
             if (contours_poly[i].size() % 4 == 0)
             {
-               drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
+//               drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
 //               image = Rect;
 //               [[NSOperationQueue mainQueue] addOperationWithBlock:^{
 //                   self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
@@ -146,7 +155,6 @@ using namespace std;
             }
 //        }
         RectCount = 0;
-        NSLog(@"contours size %lu", contours.size());
        
         /// 计算矩
         vector<Moments> mu(contours_poly.size());
@@ -184,14 +192,18 @@ using namespace std;
         }
         mc_int_singal.erase(begin(mc_int_singal));
         
-        contours_poly.clear();
+//        contours_poly.clear();
         mu.clear();
         mc.clear();
         mc_int.clear();
         mc_int_singal.clear();
         }
+        NSLog(@"contours size %lu", contours.size());
+//        contours.clear();
+//        contours_poly.clear();
         
     }
+    colorContours.clear();
     
     
     
@@ -294,6 +306,9 @@ Point2f op(Point2f ch)
 //另外一个是得到几个中心点之间的距离
 - (IBAction)StartAction:(UIButton *)sender {
     [self.videoCamera start];
+}
+- (IBAction)Pauseaction:(UIButton *)sender {
+    [self.videoCamera stop];
 }
 
 @end
