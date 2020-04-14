@@ -54,14 +54,32 @@ using namespace std;
 
 - (void)processImage:(cv::Mat &)image
 {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-    });
     //检测全部颜色
     Mat hsvImg;
     cvtColor(image, hsvImg, COLOR_BGR2HSV);
     enum colorType{Red = 0, Green, Blue, ColorButt};
-      
+    
+    const Scalar hsvBlackLo(0, 0, 0);
+    const Scalar hsvBlackHi(180, 255, 46);
+    
+    const Scalar hsvGrayLo(0, 0, 46);
+    const Scalar hsvGrayHi(180, 43, 220);
+    
+    const Scalar hsvOrangeLo(11, 43, 46);
+    const Scalar hsvOrangeHi(24, 255, 255);
+    
+    const Scalar hsvPurpleLo(125, 43, 46);
+    const Scalar hsvPurpleHi(155, 255, 255);
+    
+    const Scalar hsvWhiteLo(0, 0, 221);
+    const Scalar hsvWhiteHi(180, 30, 255);
+    
+    const Scalar hsvGoldLo(125, 43, 46);
+    const Scalar hsvGoldHi(0.1405 * 180 , 255, 255);
+    
+    const Scalar hsvSilverLo(125, 43, 46);
+    const Scalar hsvSilverHi(0, 0, 0.9373);
+    
     const Scalar hsvRedLo( 0,  40,  40);
     const Scalar hsvRedHi(40, 255, 255);
       
@@ -74,11 +92,11 @@ using namespace std;
     const Scalar hsvYellowLo(26, 43, 46);
     const Scalar hsvYellowHi(34, 255, 255);
       
-    vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo};
-    vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi};
+    vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo, hsvBlackLo, hsvGrayLo, hsvOrangeLo, hsvPurpleLo, hsvWhiteLo, hsvSilverLo, hsvSilverLo};
+    vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi, hsvBlackHi, hsvGrayHi, hsvOrangeHi, hsvPurpleHi, hsvWhiteHi, hsvGoldHi, hsvSilverHi};
     
     //存储得到的颜色边框
-    vector<string> colors = {"red", "green", "blue", "yellow"};
+    vector<string> colors = {"red", "green", "blue", "yellow", "red", "black", "gray", "orange", "perple", "white"};
     std:map<string, vector<vector<cv::Point>>> colorContours;
     //这里是个循环.重复步骤，直到所有颜色都识别完毕。
     for (int colorIdx = 0; colorIdx < hsvLo.size(); colorIdx ++) {
@@ -126,11 +144,14 @@ using namespace std;
 //    image = greyPic;
 //    medianBlur(greyPic, greyPic, 1);    //中值滤波
 //    image = greyPic;
+    std::map<string, vector<Point2f>> shapeCenter;
     if (colorContours.size() > 100) {
         colorContours.clear();
     }
-    for (int i = 0; i < colorContours.size(); i ++) {
-        vector<vector<cv::Point>> contours = colorContours[colors[i]];
+    for (int j = 0; j < colorContours.size(); j ++) {
+        
+        vector<vector<cv::Point>> contours = colorContours[colors[j]];
+        //因为线条拉伸需要太多的CPU资源，所以过滤掉大部分
         if (contours.size() > 100) {
             contours.clear();
         }
@@ -141,9 +162,7 @@ using namespace std;
         static int RectCount = 0;
         for (int i = 0; i < contours.size(); i++)
         {
-//            if (i % 2 == 0) {
-//                break;
-//            }
+            
             approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
             if (contours_poly[i].size() % 4 == 0)
             {
@@ -154,56 +173,64 @@ using namespace std;
 //               }];
             }
 //        }
-        RectCount = 0;
-       
-        /// 计算矩
-        vector<Moments> mu(contours_poly.size());
-        ///  计算中心矩:
-        vector<Point2f> mc(contours_poly.size());
-        /// 计算矩
-        for( int i = 0; i < contours_poly.size(); i++ )
-           { mu[i] = moments( contours_poly[i], false ); }
-        /// 计算矩
-        for( int i = 0; i < contours_poly.size(); i++ )
-           { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
-        //中心矩是一个容器，需要处理其中的点
-        //遍历mc 容器
-        for (int i = 0; i < mc.size(); i ++)
-        {
-            if (isnan(mc[i].x) || isnan(mc[i].y))
+            RectCount = 0;
+            
+            /// 计算矩
+            vector<Moments> mu(contours_poly.size());
+                
+            ///  计算中心矩:
+            vector<Point2f> mc(contours_poly.size());
+            /// 计算矩
+            for( int i = 0; i < contours_poly.size(); i++ )
+               { mu[i] = moments( contours_poly[i], false ); }
+            /// 计算矩
+            for( int i = 0; i < contours_poly.size(); i++ )
+               { mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 ); }
+            //中心矩是一个容器，需要处理其中的点
+            //遍历mc 容器
+            for (int i = 0; i < mc.size(); i ++)
             {
-                mc.erase(begin(mc) + i);
+                if (isnan(mc[i].x) || isnan(mc[i].y))
+                {
+                    mc.erase(begin(mc) + i);
+                }
             }
-        }
-        
-        //把中心矩 vector 转化成为 int
-        vector<Point2f> mc_int(mc.size());
-        transform(mc.begin(), mc.end(), mc_int.begin(), op);
-        
-        //删除重复元素
-        vector<Point2f> mc_int_singal(1);
-        for (int i = 0; i < mc_int.size(); i ++)
-        {
-            auto iter = std::find(std::begin(mc_int_singal), std::end(mc_int_singal), mc_int[i]);
-            if (iter == std:: end (mc_int_singal))
+            
+            //把中心矩 vector 转化成为 int
+            vector<Point2f> mc_int(mc.size());
+            transform(mc.begin(), mc.end(), mc_int.begin(), op);
+            
+            //删除重复元素
+            vector<Point2f> mc_int_singal(1);
+            for (int i = 0; i < mc_int.size(); i ++)
             {
-                mc_int_singal.push_back(mc_int[i]);
+                auto iter = std::find(std::begin(mc_int_singal), std::end(mc_int_singal), mc_int[i]);
+                if (iter == std:: end (mc_int_singal))
+                {
+                    mc_int_singal.push_back(mc_int[i]);
+                }
             }
+            mc_int_singal.erase(begin(mc_int_singal));
+            shapeCenter.insert(std::make_pair(colors[j], mc_int_singal));
+            
+            mu.clear();
+            mc.clear();
+            mc_int.clear();
+            mc_int_singal.clear();
         }
-        mc_int_singal.erase(begin(mc_int_singal));
-        
-//        contours_poly.clear();
-        mu.clear();
-        mc.clear();
-        mc_int.clear();
-        mc_int_singal.clear();
-        }
-        NSLog(@"contours size %lu", contours.size());
+//        NSLog(@"contours size %lu", contours.size());
 //        contours.clear();
 //        contours_poly.clear();
         
     }
-    colorContours.clear();
+    
+    //现在是颜色对应点，只需要确定颜色的次序就可以算出阻值
+    //先迭代输出一下
+    map<string, vector<Point2f>>::iterator iter;
+    for(iter = shapeCenter.begin(); iter != shapeCenter.end(); iter++)
+    {
+        cout<<iter->first<<' '<<iter->second<<endl;
+    }
     
     
     
@@ -229,70 +256,7 @@ using namespace std;
      //画出矩形
 //    Mat polyPic = Mat::zeros(shrinkedPic.size(), CV_8UC3);
 //    drawContours(polyPic, polyContours, maxArea, Scalar(0,0,255/*rand() & 255, rand() & 255, rand() & 255*/), 2);
-    
-//    Mat matHsv;
-//    cvtColor(image,matHsv,COLOR_BGR2HSV);
-//
-//    vector<int> colorVec;
-//    colorVec.push_back(matHsv.at<uchar>(0,0));
-//    colorVec.push_back(matHsv.at<uchar>(0,1));
-//    colorVec.push_back(matHsv.at<uchar>(0,2));
-//
-//    if((colorVec[0] >= 0 && colorVec[0] <= 180) && (colorVec[1] >= 0 && colorVec[1] <= 255) && (colorVec[2] >= 0 && colorVec[2] <= 46)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"黑";
-//        }];
-//    }
-//    if((colorVec[0] >= 0 && colorVec[0] <= 180) && (colorVec[1] >= 0 && colorVec[1] <= 43) && (colorVec[2] >= 46 && colorVec[2] <= 220)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"灰";
-//        }];
-//    }
-//    if((colorVec[0] >= 0 && colorVec[0] <= 180) && (colorVec[1] >= 0&&colorVec[1] <= 30) && (colorVec[2] >= 221 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"白";
-//        }];
-//    }
-//    if(((colorVec[0] >= 0 && colorVec[0] <= 10) || (colorVec[0] >= 156 && colorVec[0] <= 180)) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"红";
-//        }];
-//    }
-//    if((colorVec[0] >= 11 && colorVec[0] <= 25) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"橙";
-//        }];
-//    }
-//    if((colorVec[0] >= 26 && colorVec[0] <= 34) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"黄";
-//        }];
-//    }
-//    if((colorVec[0] >= 35 && colorVec[0] <= 77) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"绿";
-//        }];
-//    }
-//    if((colorVec[0] >= 78 && colorVec[0] <= 99) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"青";
-//        }];
-//    }
-//    if((colorVec[0] >= 100 && colorVec[0] <= 124) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2] >= 46 && colorVec[2] <= 255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"蓝";
-//        }];
-//    }
-//    if((colorVec[0] >= 125 && colorVec[0] <= 155) && (colorVec[1] >= 43 && colorVec[1] <= 255) && (colorVec[2]>=46&&colorVec[2]<=255)){
-//        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//            self.colorName.text = @"紫";
-//        }];
-//    }
-//    else{
-//        cout<<"未知"<<endl;
-//    }
-
-   
+       
 }
 
 Point2f op(Point2f ch)
