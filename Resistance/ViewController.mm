@@ -232,6 +232,31 @@ using namespace std;
         cout<<iter->first<<' '<<iter->second<<endl;
     }
     
+    //先排序。排序也需要讨论按照x排序还是y排序。显然使用两个。
+    //求X/Y的平均值，找到间隔相等的点
+    //先不区分X和Y排序试下
+    //map所有的元素转化成为vector
+    vector<Point2f> sortPoint;
+    for(iter = shapeCenter.begin(); iter != shapeCenter.end(); iter++)
+    {
+        for(int i=0;i<iter->second.size();i++)
+        {
+            vector<Point2f> tmp = iter->second;
+            sortPoint.push_back(tmp[i]);
+        }
+    }
+    
+    sort(sortPoint.begin(), sortPoint.end(), cmpX);
+    for(int i = 0; i < sortPoint.size(); i ++)
+    {
+        cout << "sortPoint" << sortPoint[i] << endl;
+    }
+    
+    //（两点之间的颜色相等）
+    //锁定是哪几个点之后
+    //在map中查找
+    //计算阻值
+    
     
     
    // 画出图像
@@ -263,6 +288,11 @@ Point2f op(Point2f ch)
 {
     Point2f ponit((int)ch.x, (int)ch.y);
     return ponit;
+}
+
+bool cmpX(Point2f a,Point2f b) ///cmp函数传参的类型不是vector<int>型，是vector中元素类型,即int型
+{
+    return a.x > b.x;
 }
 
 //图形的中心点需要两个方面的计算
