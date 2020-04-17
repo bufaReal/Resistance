@@ -47,11 +47,65 @@ using namespace std;
         make.centerX.equalTo(self.view);
         make.size.mas_equalTo(CGSizeMake(352, 288));
     }];
+    
+    UIButton *colorBand = [UIButton buttonWithType:UIButtonTypeSystem];
+    [colorBand setTitle:@"电阻色环" forState:UIControlStateNormal];
+    [colorBand addTarget:self action:@selector(selectedColor) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:colorBand];
+    [colorBand mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.bottom.left.right.equalTo(self.view);
+        make.height.mas_equalTo(30);
+    }];
 
     
     // Do any additional setup after loading the view.
 }
 
+#pragma mark event
+- (void)selectedColor
+{
+    //显示弹出框列表选择
+    UIAlertController* alert = [UIAlertController alertControllerWithTitle:@""
+                                                                   message:@"电阻色环"
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+    
+    UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleDestructive
+                                                          handler:^(UIAlertAction * action) {
+                                                              //响应事件
+                                                              NSLog(@"action = %@", action);
+                                                          }];
+    UIAlertAction* deleteAction1 = [UIAlertAction actionWithTitle:@"三色环电阻" style:UIAlertActionStyleDefault
+                                                        handler:^(UIAlertAction * action) {
+                                                            //响应事件
+                                                            NSLog(@"action = %@", action);
+                                                        }];
+    
+    UIAlertAction* deleteAction = [UIAlertAction actionWithTitle:@"四色环电阻" style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction * action) {
+                                                             //响应事件
+                                                             NSLog(@"action = %@", action);
+                                                         }];
+    UIAlertAction* saveAction = [UIAlertAction actionWithTitle:@"五色环电阻" style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction * action) {
+                                                             //响应事件
+                                                             NSLog(@"action = %@", action);
+                                                         }];
+    UIAlertAction* saveAction1 = [UIAlertAction actionWithTitle:@"六色环电阻" style:UIAlertActionStyleDefault
+                                                        handler:^(UIAlertAction * action) {
+                                                            //响应事件
+                                                            NSLog(@"action = %@", action);
+                                                        }];
+    
+    [alert addAction:deleteAction1];
+    [alert addAction:deleteAction];
+    [alert addAction:saveAction];
+    
+    [alert addAction:saveAction1];
+    [alert addAction:cancelAction];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+#pragma mark delegate
 - (void)processImage:(cv::Mat &)image
 {
     //检测全部颜色
@@ -246,15 +300,126 @@ using namespace std;
         }
     }
     
+    //（两点之间的颜色相等）
+    Scalar flagColor;
+    flagColor[0] = 0; flagColor[1] = 0; flagColor[2] = 0;
+    for (int i = 0; i < sortPoint.size(); i ++) {
+        //两点之间平均值
+        float averageX = 0.0, averageY = 0.0;
+        if (i + 1 < sortPoint.size()) {
+            averageX = (sortPoint[i].x + sortPoint[i + 1].x) / 2;
+            averageY = (sortPoint[i].y + sortPoint[i + 1].y) / 2;
+            Point2f a;
+            a.x = averageX; a.y = averageY;
+            Scalar color = getMatColor(image, a);
+            if (flagColor[0] != 0) {
+                if (flagColor[0] != color[0] || flagColor[1] != color[1] || flagColor[2] != color[2]) {
+                    flagColor[0] = 0; flagColor[1] = 0; flagColor[2] = 0;
+                    sortPoint.erase(begin(sortPoint) + i);
+                    i --;
+                }
+            }
+        }
+        
+    }
+    
     sort(sortPoint.begin(), sortPoint.end(), cmpX);
+    //每个点之间间隔是否相同。
+    //先得到每个点之间的距离，然后统计，找到符合要求的点
+    map<float, float> statisticsMap;//统计X方向上之间的间距，存储到map中
     for(int i = 0; i < sortPoint.size(); i ++)
     {
+        float front = sortPoint[i].x;
+        float back = 0;
+        if (i + 1 < sortPoint.size()) {
+            back = sortPoint[i + 1].x;
+            map<float, float>::iterator l_it;;
+            l_it = statisticsMap.find(front - back);
+            if(l_it == statisticsMap.end()){
+                statisticsMap.insert(map<int, int>::value_type(front - back, 0));
+                cout<<"we do not find 112"<<endl;
+            }
+            else{
+                statisticsMap[front - back] ++;
+                cout<<"wo find 112"<<endl;
+            }
+        }
+        
         cout << "sortPoint" << sortPoint[i] << endl;
     }
     
-    //（两点之间的颜色相等）
-    //锁定是哪几个点之后
-    //在map中查找
+    //当个数等于一就不要删了
+    for(int i = 0; i < sortPoint.size(); i ++)
+    {
+        float front = sortPoint[i].x;
+        float back = 0;
+        if (i + 1 < sortPoint.size()) {
+            back = sortPoint[i + 1].x;
+            if (statisticsMap[front - back] <= 2 && statisticsMap[front - back] != 0) {
+                sortPoint.erase(begin(sortPoint) + i);//不要将其删除，而是加入到另外一个vector
+                i --;
+            }
+        }
+    }
+    
+    sort(sortPoint.begin(), sortPoint.end(), cmpY);
+    for(int i = 0; i < sortPoint.size(); i ++)
+    {
+        float front = sortPoint[i].y;
+        float back = 0;
+        if (i + 1 < sortPoint.size()) {
+            back = sortPoint[i + 1].y;
+            map<float, float>::iterator l_it;;
+            l_it = statisticsMap.find(front - back);
+            if(l_it == statisticsMap.end()){
+                statisticsMap.insert(map<int, int>::value_type(front - back, 0));
+                cout<<"we do not find 112"<<endl;
+            }
+            else{
+                statisticsMap[front - back] ++;
+                cout<<"wo find 112"<<endl;
+            }
+        }
+        cout << "sortPoint" << sortPoint[i] << endl;
+    }
+    
+    for(int i = 0; i < sortPoint.size(); i ++)
+    {
+        float front = sortPoint[i].y;
+        float back = 0;
+        if (i + 1 < sortPoint.size()) {
+            back = sortPoint[i + 1].y;
+            if (statisticsMap[front - back] <= 2 && statisticsMap[front - back] != 0) {
+                sortPoint.erase(begin(sortPoint) + i);
+                i --;
+            }
+        }
+    }
+    
+    //锁定是哪几个点之后，需要找到电阻的色环的第一位和末位
+    //找到第一位或者末位只需要比较，point x或者y之间的间距。如果第一个间距和第二个间距相等则反转。如果第一个间距大于第二个间距，则不用反转
+    //先找x或者y都无所谓
+    bool isReverseOrder = NO;
+    float length, length1;
+    if (sortPoint.size() >= 2) {
+        length = sortPoint[0].x - sortPoint[1].x;
+        length1 = sortPoint[1].x - sortPoint[2].x;
+        if (fabs(length) > fabs(length1)) {
+            isReverseOrder = YES;
+            reverse(sortPoint.begin(), sortPoint.end());
+        }
+        if (!isReverseOrder) {
+            length = sortPoint[0].y - sortPoint[1].y;
+            length1 = sortPoint[1].y - sortPoint[2].y;
+        }
+        if (fabs(length) > fabs(length1)) {
+            isReverseOrder = YES;
+            reverse(sortPoint.begin(), sortPoint.end());
+        }
+    }
+    
+    //在map中查找,输出一串颜色名称次序
+    
     //计算阻值
     
     
@@ -284,6 +449,12 @@ using namespace std;
        
 }
 
+Scalar getMatColor(Mat image, Point2f point)
+{
+    Scalar color = image.at<Vec3b>(point.x, point.y);//读取原图像(150, 150)的BGR颜色值，如果是灰度图像，将Vec3b改为uchar
+    return color;
+}
+
 Point2f op(Point2f ch)
 {
     Point2f ponit((int)ch.x, (int)ch.y);
@@ -293,6 +464,11 @@ Point2f op(Point2f ch)
 bool cmpX(Point2f a,Point2f b) ///cmp函数传参的类型不是vector<int>型，是vector中元素类型,即int型
 {
     return a.x > b.x;
+}
+
+bool cmpY(Point2f a,Point2f b) ///cmp函数传参的类型不是vector<int>型，是vector中元素类型,即int型
+{
+    return a.y > b.y;
 }
 
 //图形的中心点需要两个方面的计算
