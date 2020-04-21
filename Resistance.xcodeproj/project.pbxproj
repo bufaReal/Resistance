@@ -27,6 +27,9 @@
 		B981F0CC241C7E9C00C1B17D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B981F0CB241C7E9C00C1B17D /* Assets.xcassets */; };
 		B981F0CF241C7E9C00C1B17D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B981F0CD241C7E9C00C1B17D /* LaunchScreen.storyboard */; };
 		B981F0D2241C7E9C00C1B17D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = B981F0D1241C7E9C00C1B17D /* main.mm */; };
+		B9871BFF244D97F200273A7B /* SetterViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B9871BFE244D97F200273A7B /* SetterViewController.m */; };
+		B9871C02244D981C00273A7B /* StepViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B9871C01244D981B00273A7B /* StepViewController.m */; };
+		B9871C04244DA70300273A7B /* colorHSVvalue.plist in Resources */ = {isa = PBXBuildFile; fileRef = B9871C03244DA70300273A7B /* colorHSVvalue.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +60,11 @@
 		B981F0CE241C7E9C00C1B17D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B981F0D0241C7E9C00C1B17D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B981F0D1241C7E9C00C1B17D /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		B9871BFD244D97F200273A7B /* SetterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SetterViewController.h; sourceTree = "<group>"; };
+		B9871BFE244D97F200273A7B /* SetterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SetterViewController.m; sourceTree = "<group>"; };
+		B9871C00244D981B00273A7B /* StepViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StepViewController.h; sourceTree = "<group>"; };
+		B9871C01244D981B00273A7B /* StepViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = StepViewController.m; sourceTree = "<group>"; };
+		B9871C03244DA70300273A7B /* colorHSVvalue.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = colorHSVvalue.plist; sourceTree = "<group>"; };
 		CFA88213A271E74D095EB40F /* Pods-Resistance.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Resistance.release.xcconfig"; path = "Target Support Files/Pods-Resistance/Pods-Resistance.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -117,6 +125,11 @@
 				B981F0D0241C7E9C00C1B17D /* Info.plist */,
 				B981F0D1241C7E9C00C1B17D /* main.mm */,
 				B94A060E241F6885002FF2EA /* PrefixHeader.pch */,
+				B9871BFD244D97F200273A7B /* SetterViewController.h */,
+				B9871BFE244D97F200273A7B /* SetterViewController.m */,
+				B9871C00244D981B00273A7B /* StepViewController.h */,
+				B9871C01244D981B00273A7B /* StepViewController.m */,
+				B9871C03244DA70300273A7B /* colorHSVvalue.plist */,
 			);
 			path = Resistance;
 			sourceTree = "<group>";
@@ -211,6 +224,7 @@
 			files = (
 				B981F0CF241C7E9C00C1B17D /* LaunchScreen.storyboard in Resources */,
 				B981F0CC241C7E9C00C1B17D /* Assets.xcassets in Resources */,
+				B9871C04244DA70300273A7B /* colorHSVvalue.plist in Resources */,
 				B981F0CA241C7E9900C1B17D /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -265,6 +279,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B981F0C7241C7E9900C1B17D /* ViewController.mm in Sources */,
+				B9871BFF244D97F200273A7B /* SetterViewController.m in Sources */,
+				B9871C02244D981C00273A7B /* StepViewController.m in Sources */,
 				B981F0C1241C7E9900C1B17D /* AppDelegate.m in Sources */,
 				B981F0D2241C7E9C00C1B17D /* main.mm in Sources */,
 				B981F0C4241C7E9900C1B17D /* SceneDelegate.m in Sources */,

@@ -25,7 +25,6 @@ using namespace std;
 @interface ViewController ()<CvVideoCameraDelegate>
 
 @property (nonatomic, strong) CvVideoCamera *videoCamera;
-@property (weak, nonatomic) IBOutlet UILabel *colorName;
 
 @end
 
@@ -33,6 +32,8 @@ using namespace std;
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.navigationController.navigationBar.translucent = NO;
+//    self.navigationController.title = @"";
     UIImageView *imageView = [[UIImageView alloc]initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height / 2)];
     [self.view addSubview:imageView];
     self.videoCamera = [[CvVideoCamera alloc] initWithParentView:imageView];
@@ -40,7 +41,7 @@ using namespace std;
     self.videoCamera.defaultAVCaptureSessionPreset = AVCaptureSessionPreset352x288;
     self.videoCamera.defaultAVCaptureVideoOrientation = AVCaptureVideoOrientationPortrait;
     self.videoCamera.defaultFPS = 30;
-    self.videoCamera.grayscaleMode = NO;
+    self.videoCamera.grayscaleMode = YES;
     self.videoCamera.delegate = self;
     [imageView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.top.equalTo(self.view);
@@ -108,6 +109,9 @@ using namespace std;
 #pragma mark delegate
 - (void)processImage:(cv::Mat &)image
 {
+    if (image.channels() == 1) {
+        return;
+    }
     //检测全部颜色
     Mat hsvImg;
     cvtColor(image, hsvImg, COLOR_BGR2HSV);
@@ -132,7 +136,7 @@ using namespace std;
     const Scalar hsvGoldHi(0.1405 * 180 , 255, 255);
     
     const Scalar hsvSilverLo(125, 43, 46);
-    const Scalar hsvSilverHi(0, 0, 0.9373);
+    const Scalar hsvSilverHi(0, 0, 0.9373 * 255);
     
     const Scalar hsvRedLo( 0,  40,  40);
     const Scalar hsvRedHi(40, 255, 255);
@@ -145,12 +149,15 @@ using namespace std;
     
     const Scalar hsvYellowLo(26, 43, 46);
     const Scalar hsvYellowHi(34, 255, 255);
+    
+    const Scalar hsvBrownLo(0, 171, 128);
+    const Scalar hsvBrownHi(13, 255, 137);
       
-    vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo, hsvBlackLo, hsvGrayLo, hsvOrangeLo, hsvPurpleLo, hsvWhiteLo, hsvSilverLo, hsvSilverLo};
-    vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi, hsvBlackHi, hsvGrayHi, hsvOrangeHi, hsvPurpleHi, hsvWhiteHi, hsvGoldHi, hsvSilverHi};
+    vector<Scalar> hsvLo{hsvGreenLo, hsvBlueLo, hsvYellowLo, hsvRedLo, hsvBlackLo, hsvGrayLo, hsvOrangeLo, hsvPurpleLo, hsvWhiteLo, hsvGoldLo, hsvSilverLo, hsvBrownLo};
+    vector<Scalar> hsvHi{hsvGreenHi, hsvBlueHi, hsvYellowHi, hsvRedHi, hsvBlackHi, hsvGrayHi, hsvOrangeHi, hsvPurpleHi, hsvWhiteHi, hsvGoldHi, hsvSilverHi, hsvBrownHi};
     
     //存储得到的颜色边框
-    vector<string> colors = {"red", "green", "blue", "yellow", "red", "black", "gray", "orange", "perple", "white"};
+    vector<string> colors = {"green", "blue", "yellow","red", "black", "gray", "orange", "purple", "white", "gold", "silver", "brown"};
     std:map<string, vector<vector<cv::Point>>> colorContours;
     //这里是个循环.重复步骤，直到所有颜色都识别完毕。
     for (int colorIdx = 0; colorIdx < hsvLo.size(); colorIdx ++) {
@@ -193,7 +200,7 @@ using namespace std;
     
     //检测矩形部分
     //转化为灰度图像
-    Mat greyPic;
+//    Mat greyPic;
 //    cvtColor(image, greyPic, COLOR_BGR2GRAY); //转化为灰度图
 //    image = greyPic;
 //    medianBlur(greyPic, greyPic, 1);    //中值滤波
@@ -419,9 +426,108 @@ using namespace std;
     }
     
     //在map中查找,输出一串颜色名称次序
+    vector<string> colorOrder;
+    for (int i = 0; i < sortPoint.size(); i ++) {
+        //找到点对应的颜色
+        //
+        vector<Point2f> point;
+        for(iter = shapeCenter.begin(); iter != shapeCenter.end(); iter++)
+        {
+            point = iter->second;
+            //如果在point中找到，sortpoint中对应的元素
+            vector<Point2f>::iterator result = find(point.begin(), point.end(), sortPoint[i]);
+            if (result != point.end())
+            {
+                colorOrder.push_back(iter->first);
+            }
+            //则colororder push_back iter->first
+//            cout<<iter->first<<' '<<iter->second<<endl;
+        }
+    }
+    
+    
+    //根据colorOrder来计算电阻值
+    vector<string> colorNumber = {"black", "brown", "red", "orange", "yellow", "green", "blue", "purple", "gray", "white", "global", "silver"};
+    long value = 0;
+    if (colorOrder.size() == 3) {
+        for (int i = 0; i < colorOrder.size(); i ++) {
+            for (int j = 0; j < colorNumber.size(); j ++) {
+                if (colorOrder[i] == colorNumber[j] && i < colorOrder.size() - 1) {
+                    value = value * 10 + j;
+                }
+                if (i == colorOrder.size() - 1) {
+                    value = value * pow(10, j);
+                }
+            }
+        }
+        if (value > 0) {
+            [self stopCamra:value errorValue:20 tempherature:0];
+        }
+    }
+    
+    map<string, float> errorValue;
+    errorValue["silver"] = 10;
+    errorValue["global"] = 5;
+    errorValue["brown"] = 1;
+    errorValue["red"] = 2;
+    errorValue["green"] = 0.5;
+    errorValue["blue"] = 0.25;
+    errorValue["purple"] = 0.1;
+    errorValue["gray"] = 0.05;
+    
+    float colorErrorValue = 0;
+    
+    if (colorOrder.size() == 4 || colorOrder.size() == 5) {
+        for (int i = 0; i < colorOrder.size(); i ++) {
+            for (int j = 0; j < colorNumber.size(); j ++) {
+                if (colorOrder[i] == colorNumber[j] && i < colorOrder.size() - 2) {
+                    value = value * 10 + j;
+                }
+                if (i == colorOrder.size() - 2) {
+                    value = value * pow(10, j);
+                }
+                if (i == colorOrder.size() - 1) {
+                    colorErrorValue = errorValue[colorOrder[i]];
+                }
+            }
+        }
+       if (value > 0 && colorErrorValue > 0) {
+           [self stopCamra:value errorValue:colorErrorValue tempherature:0];
+       }
+    }
+    
     
     //计算阻值
-    
+    map<string, int> temperatureRelationship;
+    temperatureRelationship["brown"] = 100;
+    temperatureRelationship["red"] = 50;
+    temperatureRelationship["orange"] = 15;
+    temperatureRelationship["yellow"] = 25;
+    temperatureRelationship["blue"] = 10;
+    temperatureRelationship["purple"] = 5;
+    temperatureRelationship["white"] = 1;
+    int temperatureValue = 0;
+    if (colorOrder.size() == 4 || colorOrder.size() == 5) {
+        for (int i = 0; i < colorOrder.size(); i ++) {
+            for (int j = 0; j < colorNumber.size(); j ++) {
+                if (colorOrder[i] == colorNumber[j] && i < colorOrder.size() - 3) {
+                    value = value * 10 + j;
+                }
+                if (i == colorOrder.size() - 3) {
+                    value = value * pow(10, j);
+                }
+                if (i == colorOrder.size() - 2) {
+                    colorErrorValue = errorValue[colorOrder[i]];
+                }
+                if (i == colorOrder.size() - 1) {
+                    temperatureValue = temperatureRelationship[colorOrder[i]];
+                }
+            }
+        }
+        if (value > 0 && colorErrorValue > 0 && temperatureValue > 0) {
+            [self stopCamra:value errorValue:colorErrorValue tempherature:temperatureValue];
+        }
+    }
     
     
    // 画出图像
@@ -447,6 +553,31 @@ using namespace std;
 //    Mat polyPic = Mat::zeros(shrinkedPic.size(), CV_8UC3);
 //    drawContours(polyPic, polyContours, maxArea, Scalar(0,0,255/*rand() & 255, rand() & 255, rand() & 255*/), 2);
        
+}
+
+- (void)stopCamra:(long)value errorValue:(float)colorValue tempherature:(int)tempheratureValue
+{
+    NSString *message = [NSString stringWithFormat:@"电阻值为%li\n误差为%f%%\n温度系数为%ippm/℃", value, colorValue, tempheratureValue];
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"电阻参数" message:message preferredStyle:UIAlertControllerStyleAlert];
+    // Create the actions.
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+        NSLog(@"The \"Okay/Cancel\" alert's cancel action occured.");
+    }];
+    
+    UIAlertAction *otherAction = [UIAlertAction actionWithTitle:@"继续识别" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self.videoCamera start];
+        NSLog(@"The \"Okay/Cancel\" alert's other action occured.");
+    }];
+    
+    // Add the actions.
+    [alertController addAction:cancelAction];
+    [alertController addAction:otherAction];
+    
+    
+    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+        [self.videoCamera stop];
+        [self presentViewController:alertController animated:YES completion:nil];
+    }];
 }
 
 Scalar getMatColor(Mat image, Point2f point)
