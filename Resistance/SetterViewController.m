@@ -17,7 +17,7 @@
 @property (weak, nonatomic) IBOutlet UITextField *SHighField;
 @property (weak, nonatomic) IBOutlet UITextField *VHighField;
 
-@property (strong ,nonatomic) NSDictionary *colorMessage;
+@property (copy ,nonatomic)NSMutableDictionary *colorMessage;
 
 @end
 
@@ -91,8 +91,20 @@
         sender.text = @"";
     }
 }
-- (IBAction)saveColor:(UIBarButtonItem *)sender {
-    
+- (IBAction)saveColor:(UIBarButtonItem *)sender
+{
+    NSArray *hsvH = @[[NSNumber numberWithLong:[self.HHighField.text intValue]],
+                      [NSNumber numberWithLong:[self.SHighField.text intValue]],
+                      [NSNumber numberWithLong:[self.VHighField.text intValue]]];
+    NSArray *hsvL = @[[NSNumber numberWithLong:[self.HLowField.text intValue]],
+                      [NSNumber numberWithLong:[self.SLowField.text intValue]],
+                      [NSNumber numberWithLong:[self.VLowField.text intValue]],];
+    NSDictionary *dict = @{@"high":hsvH, @"low":hsvL};
+    [self.colorMessage setObject:dict forKey:[self.switchColor.titleLabel.text substringFromIndex:5]];
+    NSString *path=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    if ([self.colorMessage writeToFile:[path stringByAppendingPathComponent:@"colorHSVvalue.plist"] atomically:YES]) {
+        NSLog(@"write file success");
+    }
 }
 
 #pragma mark --- self method
@@ -115,16 +127,14 @@
 }
 
 #pragma mark --- lazy load
-- (NSDictionary *)colorMessage
+- (NSMutableDictionary *)colorMessage
 {
     if (!_colorMessage) {
 //        _colorMessage = [NSDictionary dictionary];
-        //创建主束
-         NSBundle *bundle=[NSBundle mainBundle];
-        //读取plist文件路径
-         NSString *path=[bundle pathForResource:@"colorHSVvalue" ofType:@"plist"];
+        NSString *path=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
         //读取数据到 NsDictionary字典中
-        _colorMessage=[[NSDictionary alloc]initWithContentsOfFile:path];
+        _colorMessage=[[NSMutableDictionary alloc]initWithContentsOfFile:[path
+                                                                          stringByAppendingPathComponent:@"colorHSVvalue.plist"]];
     }
     return _colorMessage;
 }

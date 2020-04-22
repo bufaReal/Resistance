@@ -41,7 +41,7 @@ using namespace std;
     self.videoCamera.defaultAVCaptureSessionPreset = AVCaptureSessionPreset352x288;
     self.videoCamera.defaultAVCaptureVideoOrientation = AVCaptureVideoOrientationPortrait;
     self.videoCamera.defaultFPS = 30;
-    self.videoCamera.grayscaleMode = YES;
+    self.videoCamera.grayscaleMode = NO;
     self.videoCamera.delegate = self;
     [imageView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.top.equalTo(self.view);
@@ -106,6 +106,46 @@ using namespace std;
     [self presentViewController:alert animated:YES completion:nil];
 }
 
+#pragma mark --- self method
+-(void)inSureColor:(vector<string>)colorOrder highColor:(vector<Scalar> &)HSVHigh lowColor:(vector<Scalar> &)HSVLow
+{
+    NSString *path=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    //读取数据到 NsDictionary字典中
+     NSDictionary *colorContent = [[NSDictionary alloc]initWithContentsOfFile:[path stringByAppendingPathComponent:@"colorHSVvalue.plist"]];
+    for (int i = 0; i < colorOrder.size(); i++) {
+        NSDictionary *dict = [colorContent objectForKey:[NSString stringWithCString:colorOrder[i].c_str() encoding:[NSString defaultCStringEncoding]]];
+        NSArray *HSVH = [dict objectForKey:@"high"];
+        NSNumber *hh = [HSVH objectAtIndex:0];
+        NSNumber *sh = [HSVH objectAtIndex:1];
+        NSNumber *vh = [HSVH objectAtIndex:2];
+        
+        Scalar hsvH = HSVHigh[i];
+        NSNumber *HHigh = @(hsvH[0]);
+        NSNumber *SHigh = @(hsvH[1]);
+        NSNumber *VHigh = @(hsvH[2]);
+        if (![hh isEqualToNumber:HHigh] || ![sh isEqualToNumber:SHigh] || ![vh isEqualToNumber:VHigh]) {
+            Scalar tmp([hh doubleValue], [sh doubleValue], [vh doubleValue]);
+            HSVHigh[i] = tmp;
+        }
+        
+        NSArray *HSVL = [dict objectForKey:@"low"];
+        NSNumber *hl = [HSVL objectAtIndex:0];
+        NSNumber *sl = [HSVL objectAtIndex:1];
+        NSNumber *vl = [HSVL objectAtIndex:2];
+        
+        Scalar hsvL = HSVLow[i];
+        NSNumber *HLow = @(hsvL[0]);
+        NSNumber *SLow = @(hsvL[1]);
+        NSNumber *VLow = @(hsvL[2]);
+        
+        if (![hl isEqualToNumber:HLow] || ![sl isEqualToNumber:SLow] || ![vl isEqualToNumber:VLow]) {
+            Scalar tmp([hl doubleValue], [sl doubleValue], [vl doubleValue]);
+            HSVLow[i] = tmp;
+        }
+    }
+    
+}
+
 #pragma mark delegate
 - (void)processImage:(cv::Mat &)image
 {
@@ -158,6 +198,7 @@ using namespace std;
     
     //存储得到的颜色边框
     vector<string> colors = {"green", "blue", "yellow","red", "black", "gray", "orange", "purple", "white", "gold", "silver", "brown"};
+    [self inSureColor:colors highColor:hsvHi lowColor:hsvLo];
     std:map<string, vector<vector<cv::Point>>> colorContours;
     //这里是个循环.重复步骤，直到所有颜色都识别完毕。
     for (int colorIdx = 0; colorIdx < hsvLo.size(); colorIdx ++) {

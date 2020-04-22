@@ -43,8 +43,8 @@
 		<key>low</key>
 		<array>
 			<integer>26</integer>
-			<string>43</string>
-			<string>46</string>
+			<integer>43</integer>
+			<integer>46</integer>
 		</array>
 	</dict>
 	<key>red</key>
@@ -83,7 +83,7 @@
 		<array>
 			<integer>0</integer>
 			<integer>0</integer>
-			<string>46</string>
+			<integer>46</integer>
 		</array>
 		<key>high</key>
 		<array>

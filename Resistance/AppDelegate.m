@@ -20,6 +20,23 @@
     // Override point for customization after application launch.
     [[IQKeyboardManager sharedManager] setEnable:YES];
     [IQKeyboardManager sharedManager].shouldResignOnTouchOutside = YES;
+    //创建主束
+     NSBundle *bundle=[NSBundle mainBundle];
+    //读取plist文件路径
+     NSString *path=[bundle pathForResource:@"colorHSVvalue" ofType:@"plist"];
+    //读取数据到 NsDictionary字典中
+    NSMutableDictionary *dict=[[NSMutableDictionary alloc]initWithContentsOfFile:path];
+    NSArray *paths=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES);
+    path = [paths    objectAtIndex:0];
+    NSString *filename=[path stringByAppendingPathComponent:@"colorHSVvalue.plist"];
+    
+    //判断createPath路径文件夹是否已存在，此处createPath为需要新建的文件夹的绝对路径
+    if (![[NSFileManager defaultManager] fileExistsAtPath:filename]) {
+        if ([dict writeToFile:filename atomically:YES]) {
+            NSLog(@"转移文件成功");
+        }
+    }
+        
     return YES;
 }
 
