@@ -15,16 +15,20 @@
 #import <opencv2/videoio.hpp>
 #import <opencv2/highgui.hpp>  // OpenCV window I/O
 #import <Masonry.h>
-#include <MapKit/MapKit.h>
+#import "StepViewController.h"
 
 
 using namespace cv;
 using namespace std;
 
+template <class T> std::string ConvertToString(T);
 
 @interface ViewController ()<CvVideoCameraDelegate>
 
 @property (nonatomic, strong) CvVideoCamera *videoCamera;
+@property (nonatomic, strong) NSMutableArray *colorsImage;
+@property (nonatomic, assign) int colorBands;
+@property (nonatomic, copy) NSMutableString *logString;
 
 @end
 
@@ -35,6 +39,7 @@ using namespace std;
     self.navigationController.navigationBar.translucent = NO;
 //    self.navigationController.title = @"";
     UIImageView *imageView = [[UIImageView alloc]initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height / 2)];
+    imageView.backgroundColor = [UIColor colorWithRed:52 / 255.0 green:199 / 255.0 blue:89 / 255.0 alpha:1.f];
     [self.view addSubview:imageView];
     self.videoCamera = [[CvVideoCamera alloc] initWithParentView:imageView];
     self.videoCamera.defaultAVCaptureDevicePosition = AVCaptureDevicePositionBack;
@@ -53,13 +58,19 @@ using namespace std;
     [colorBand setTitle:@"电阻色环" forState:UIControlStateNormal];
     [colorBand addTarget:self action:@selector(selectedColor) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:colorBand];
+    colorBand.backgroundColor = [UIColor colorWithRed:196 / 255.0 green:196 / 255.0 blue:196 / 255.0  alpha:0.5];
     [colorBand mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.bottom.left.right.equalTo(self.view);
+        make.left.right.equalTo(self.view);
         make.height.mas_equalTo(30);
+        make.bottom.mas_equalTo(self.view.mas_bottom).mas_offset(-15);
     }];
-
-    
     // Do any additional setup after loading the view.
+}
+
+- (void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    [self.videoCamera stop];
 }
 
 #pragma mark event
@@ -72,29 +83,23 @@ using namespace std;
     
     UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleDestructive
                                                           handler:^(UIAlertAction * action) {
-                                                              //响应事件
-                                                              NSLog(@"action = %@", action);
                                                           }];
     UIAlertAction* deleteAction1 = [UIAlertAction actionWithTitle:@"三色环电阻" style:UIAlertActionStyleDefault
                                                         handler:^(UIAlertAction * action) {
-                                                            //响应事件
-                                                            NSLog(@"action = %@", action);
+        self.colorBands = 3;
                                                         }];
     
     UIAlertAction* deleteAction = [UIAlertAction actionWithTitle:@"四色环电阻" style:UIAlertActionStyleDefault
                                                          handler:^(UIAlertAction * action) {
-                                                             //响应事件
-                                                             NSLog(@"action = %@", action);
+        self.colorBands = 4;
                                                          }];
     UIAlertAction* saveAction = [UIAlertAction actionWithTitle:@"五色环电阻" style:UIAlertActionStyleDefault
                                                          handler:^(UIAlertAction * action) {
-                                                             //响应事件
-                                                             NSLog(@"action = %@", action);
+        self.colorBands = 5;
                                                          }];
     UIAlertAction* saveAction1 = [UIAlertAction actionWithTitle:@"六色环电阻" style:UIAlertActionStyleDefault
                                                         handler:^(UIAlertAction * action) {
-                                                            //响应事件
-                                                            NSLog(@"action = %@", action);
+        self.colorBands = 6;
                                                         }];
     
     [alert addAction:deleteAction1];
@@ -104,6 +109,15 @@ using namespace std;
     [alert addAction:saveAction1];
     [alert addAction:cancelAction];
     [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender{
+    //通过segue判断要跳转到哪个页面
+    if ([segue.identifier isEqualToString:@"stepID"]) {
+        StepViewController * destinaVC = segue.destinationViewController;
+        destinaVC.colorsImage = self.colorsImage;
+        destinaVC.logString = self.logString;
+    }
 }
 
 #pragma mark --- self method
@@ -146,11 +160,61 @@ using namespace std;
     
 }
 
+- (UIImage *)UIImageFromCVMat:(cv::Mat)cvMat {
+    NSData *data = [NSData dataWithBytes:cvMat.data length:cvMat.elemSize()*cvMat.total()];
+    
+    CGColorSpaceRef colorSpace;
+    CGBitmapInfo bitmapInfo;
+    
+    if (cvMat.elemSize() == 1) {
+        colorSpace = CGColorSpaceCreateDeviceGray();
+        bitmapInfo = kCGImageAlphaNone | kCGBitmapByteOrderDefault;
+    } else {
+        colorSpace = CGColorSpaceCreateDeviceRGB();
+        bitmapInfo = kCGBitmapByteOrder32Little | (
+                                                   cvMat.elemSize() == 3? kCGImageAlphaNone : kCGImageAlphaNoneSkipFirst
+                                                   );
+    }
+    
+    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
+    
+    // Creating CGImage from cv::Mat
+    CGImageRef imageRef = CGImageCreate(
+                                        cvMat.cols,                 //width
+                                        cvMat.rows,                 //height
+                                        8,                          //bits per component
+                                        8 * cvMat.elemSize(),       //bits per pixel
+                                        cvMat.step[0],              //bytesPerRow
+                                        colorSpace,                 //colorspace
+                                        bitmapInfo,                 // bitmap info
+                                        provider,                   //CGDataProviderRef
+                                        NULL,                       //decode
+                                        false,                      //should interpolate
+                                        kCGRenderingIntentDefault   //intent
+                                        );
+    
+    // Getting UIImage from CGImage
+    UIImage *finalImage = [UIImage imageWithCGImage:imageRef];
+    CGImageRelease(imageRef);
+    CGDataProviderRelease(provider);
+    CGColorSpaceRelease(colorSpace);
+    
+    [self.colorsImage addObject:finalImage];
+    
+    return finalImage;
+}
+
 #pragma mark delegate
 - (void)processImage:(cv::Mat &)image
 {
     if (image.channels() == 1) {
         return;
+    }
+    if (self.colorsImage.count > 0) {
+        [self.colorsImage removeAllObjects];
+    }
+    if (self.logString.length > 0) {
+        [self.logString deleteCharactersInRange:NSMakeRange(0, self.logString.length)];
     }
     //检测全部颜色
     Mat hsvImg;
@@ -206,6 +270,7 @@ using namespace std;
         // 查找指定范围内的颜色
         inRange(hsvImg, hsvLo[colorIdx], hsvHi[colorIdx], imgThresholded);
 //        image = imgThresholded;
+        [self UIImageFromCVMat:imgThresholded];
         Mat binPic;
 //        threshold(imgThresholded, binPic, 1, 255, THRESH_BINARY | THRESH_OTSU);    //阈值化为二值图片
         const int maxVal = 255;
@@ -224,9 +289,10 @@ using namespace std;
            */
            //---------------【4】图像自适应阈值操作-------------------------
         adaptiveThreshold(imgThresholded, binPic, maxVal, adaptiveMethod, thresholdType, blockSize, constValue);
-        float cannyThr = 100, FACTOR = 2.5;
+        float cannyThr = 5, FACTOR = 3;
         Mat cannyPic;
         Canny(binPic, cannyPic, cannyThr, cannyThr*FACTOR);    //Canny边缘检测
+        image = cannyPic;
         vector<Vec4i> hierarchy;
         //这里数据结构是不对的。
         //应该把各个颜色的边框存储到一个map中，比如red：contours
@@ -239,17 +305,49 @@ using namespace std;
     hsvHi.clear();
     
     
-    //检测矩形部分
-    //转化为灰度图像
-//    Mat greyPic;
-//    cvtColor(image, greyPic, COLOR_BGR2GRAY); //转化为灰度图
-//    image = greyPic;
-//    medianBlur(greyPic, greyPic, 1);    //中值滤波
-//    image = greyPic;
     std::map<string, vector<Point2f>> shapeCenter;
     if (colorContours.size() > 100) {
         colorContours.clear();
     }
+    
+    //现在找出面积相同的个数，如果不满足直接return
+    map<double, int> areaQuieCount;
+    for (int j = 0; j < colorContours.size(); j ++) {
+        vector<vector<cv::Point>> contours = colorContours[colors[j]];
+        if (contours.size() == 0) {
+            break;
+        }
+        for (int i = 0; i < contours.size(); i++)
+        {
+            double area = contourArea(contours[i]);
+            auto iter = areaQuieCount.find(area);
+            if(iter != areaQuieCount.end())
+            {
+                areaQuieCount[area] ++;
+            }
+            else
+            {
+                areaQuieCount.insert(pair<int, int>(area, 0));
+            }
+            
+        }
+    }
+    map<double, int>::iterator _iter;
+    _iter = areaQuieCount.begin();
+    int maxAreaCount = 0;
+    while(_iter != areaQuieCount.end()) {
+        //找出面积相同最多的个数
+//        cout << iter->first << " : " << iter->second << endl;
+        if (_iter->second >= maxAreaCount) {
+            maxAreaCount = _iter->second;
+        }
+        _iter++;
+    }
+    //如果最大个数小于色环，则返回
+    if (maxAreaCount < self.colorBands) {
+        return;
+    }
+    
     for (int j = 0; j < colorContours.size(); j ++) {
         
         vector<vector<cv::Point>> contours = colorContours[colors[j]];
@@ -266,15 +364,12 @@ using namespace std;
         {
             
             approxPolyDP(contours[i], contours_poly[i], arcLength(contours[i], true) * 0.01, true);
-            if (contours_poly[i].size() % 4 == 0)
+            if (contours_poly[i].size() % 4 != 0)
             {
-//               drawContours(Rect, contours_poly, i, Scalar(rand() & 255, rand() & 255, rand() & 255), 2, 8, Mat(), 0, cv::Point());//dst必须先初始化
-//               image = Rect;
-//               [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-//                   self.colorName.text = [NSString stringWithFormat:@"边的数目%lu 矩形数目%i", contours_poly[i].size(), ++RectCount];
-//               }];
+                contours_poly.erase(contours_poly.begin() + i);
+                i--;
+                break;
             }
-//        }
             RectCount = 0;
             
             /// 计算矩
@@ -327,12 +422,22 @@ using namespace std;
     }
     
     //现在是颜色对应点，只需要确定颜色的次序就可以算出阻值
+    //全部的点，log
     //先迭代输出一下
     map<string, vector<Point2f>>::iterator iter;
+    string list;
     for(iter = shapeCenter.begin(); iter != shapeCenter.end(); iter++)
     {
-        cout<<iter->first<<' '<<iter->second<<endl;
+        //map转化为string
+        if (iter->second.size() > 0) {
+            list = iter->first + " " +
+            ConvertToString(iter->second[0]) + " " +
+            ConvertToString(iter->second[1]) + " " +
+            ConvertToString(iter->second[2]) + "\n\n";
+        }
     }
+    NSString *str= [NSString stringWithCString:list.c_str() encoding:[NSString defaultCStringEncoding]];
+    [self.logString appendString:str];
     
     //先排序。排序也需要讨论按照x排序还是y排序。显然使用两个。
     //求X/Y的平均值，找到间隔相等的点
@@ -385,15 +490,11 @@ using namespace std;
             l_it = statisticsMap.find(front - back);
             if(l_it == statisticsMap.end()){
                 statisticsMap.insert(map<int, int>::value_type(front - back, 0));
-                cout<<"we do not find 112"<<endl;
             }
             else{
                 statisticsMap[front - back] ++;
-                cout<<"wo find 112"<<endl;
             }
         }
-        
-        cout << "sortPoint" << sortPoint[i] << endl;
     }
     
     //当个数等于一就不要删了
@@ -403,7 +504,7 @@ using namespace std;
         float back = 0;
         if (i + 1 < sortPoint.size()) {
             back = sortPoint[i + 1].x;
-            if (statisticsMap[front - back] <= 2 && statisticsMap[front - back] != 0) {
+            if (statisticsMap[front - back] <= (self.colorBands - 1) && statisticsMap[front - back] != 0) {
                 sortPoint.erase(begin(sortPoint) + i);//不要将其删除，而是加入到另外一个vector
                 i --;
             }
@@ -421,14 +522,11 @@ using namespace std;
             l_it = statisticsMap.find(front - back);
             if(l_it == statisticsMap.end()){
                 statisticsMap.insert(map<int, int>::value_type(front - back, 0));
-                cout<<"we do not find 112"<<endl;
             }
             else{
                 statisticsMap[front - back] ++;
-                cout<<"wo find 112"<<endl;
             }
         }
-        cout << "sortPoint" << sortPoint[i] << endl;
     }
     
     for(int i = 0; i < sortPoint.size(); i ++)
@@ -486,6 +584,13 @@ using namespace std;
         }
     }
     
+    //颜色次序 log
+    for (int i = 0; i < colorOrder.size(); i++) {
+        string list = colorOrder[i];
+        NSString *str= [NSString stringWithCString:list.c_str() encoding:[NSString defaultCStringEncoding]];
+        [self.logString appendString:str];
+        [self.logString appendString:@"  "];
+    }
     
     //根据colorOrder来计算电阻值
     vector<string> colorNumber = {"black", "brown", "red", "orange", "yellow", "green", "blue", "purple", "gray", "white", "global", "silver"};
@@ -501,7 +606,7 @@ using namespace std;
                 }
             }
         }
-        if (value > 0) {
+        if (value > 0 && value < pow(10, 13) && self.colorBands == 3) {
             [self stopCamra:value errorValue:20 tempherature:0];
         }
     }
@@ -532,7 +637,7 @@ using namespace std;
                 }
             }
         }
-       if (value > 0 && colorErrorValue > 0) {
+       if (value > 0 && value < pow(10, 15) && colorErrorValue > 0 && (self.colorBands == 4 || self.colorBands == 5)) {
            [self stopCamra:value errorValue:colorErrorValue tempherature:0];
        }
     }
@@ -548,7 +653,7 @@ using namespace std;
     temperatureRelationship["purple"] = 5;
     temperatureRelationship["white"] = 1;
     int temperatureValue = 0;
-    if (colorOrder.size() == 4 || colorOrder.size() == 5) {
+    if (colorOrder.size() == 6) {
         for (int i = 0; i < colorOrder.size(); i ++) {
             for (int j = 0; j < colorNumber.size(); j ++) {
                 if (colorOrder[i] == colorNumber[j] && i < colorOrder.size() - 3) {
@@ -565,7 +670,7 @@ using namespace std;
                 }
             }
         }
-        if (value > 0 && colorErrorValue > 0 && temperatureValue > 0) {
+        if (value > 0 && value < pow(10, 15)  && colorErrorValue > 0 && temperatureValue > 0 && self.colorBands == 6) {
             [self stopCamra:value errorValue:colorErrorValue tempherature:temperatureValue];
         }
     }
@@ -651,6 +756,37 @@ bool cmpY(Point2f a,Point2f b) ///cmp函数传参的类型不是vector<int>型�
 }
 - (IBAction)Pauseaction:(UIButton *)sender {
     [self.videoCamera stop];
+}
+
+template <class T>std::string ConvertToString(T value) {
+  std::stringstream ss;
+  ss << value;
+  return ss.str();
+}
+
+#pragma mark lazy load
+- (NSMutableArray *)colorsImage
+{
+    if (_colorsImage == nil && _colorsImage.count == 0) {
+        _colorsImage = [NSMutableArray array];
+    }
+    return _colorsImage;;
+}
+
+- (int)colorBands
+{
+    if (_colorBands == 0 ) {
+        _colorBands = 3;
+    }
+    return _colorBands;
+}
+
+- (NSMutableString *)logString
+{
+    if (!_logString) {
+        _logString = [NSMutableString string];
+    }
+    return _logString;
 }
 
 @end

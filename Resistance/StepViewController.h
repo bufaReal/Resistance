@@ -12,6 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface StepViewController : UIViewController
 
+@property (nonatomic, strong) NSMutableArray *colorsImage;
+@property (nonatomic, copy) NSMutableString *logString;
+
 @end
 
 NS_ASSUME_NONNULL_END
